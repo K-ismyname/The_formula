@@ -14,6 +14,7 @@ import { fmtCount } from "@/lib/ref-style";
 import { ogImage, SITE_NAME } from "@/lib/site";
 import { ArticleActions } from "./article-actions";
 import { DetailComments } from "./detail-comments";
+import { RelatedRecommendations } from "./related-recommendations";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -228,25 +229,9 @@ export default async function ArticleDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* 관련 글 추천 — 해시태그 겹침 랭킹, 겹치는 글 없으면 섹션 자체 숨김 */}
-          {relatedArticles.length > 0 && (
-            <section className="linked-formulas" style={{ marginTop: 28 }}>
-              <div className="lf-head">
-                <span aria-hidden>🔗</span>이런 글은 어떠세요?
-              </div>
-              <ul className="lf-list">
-                {relatedArticles.map((a) => (
-                  <li key={a.id}>
-                    <Link href={`/article/${a.id}`} className="lf-item">
-                      <div className="lf-main">
-                        <span className="lf-name">{a.title}</span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {/* 관련 글 추천 — 해시태그 겹침 랭킹, 겹치는 글 없으면 섹션 자체 숨김
+              (노출/클릭 GA4 트래킹은 related-recommendations.tsx 참고) */}
+          <RelatedRecommendations articleId={post.id} items={relatedArticles} />
 
           {/* =====================================================================
               이 아티클로 만든 공식(아카이브) 연결 섹션 + 큰 CTA
