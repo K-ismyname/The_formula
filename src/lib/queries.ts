@@ -610,6 +610,50 @@ export async function getAuthorOtherPosts(
   return rows.map(rowToPost);
 }
 
+/**
+ * 해시태그가 가장 많이 겹치는 다른 아티클(cardnews)을 랭킹순으로 반환.
+ * 겹치는 태그가 0개인 글은 결과에서 제외된다(HAVING count(*) >= 1).
+ */
+export async function getRelatedArticles(
+  postId: string,
+  tags: string[],
+  limit = 2,
+): Promise<FeedPost[]> {
+  if (!tags.length) return [];
+
+  const tagList = sql.join(
+    tags.map((t) => sql`${t}`),
+    sql`, `,
+  );
+
+  const ranked = await db.execute(sql`
+    SELECT p.id, count(*)::int AS overlap
+    FROM post p
+    CROSS JOIN LATERAL jsonb_array_elements_text(p.tags) AS tag
+    WHERE p."postType" = 'cardnews'
+      AND p.id <> ${postId}
+      AND tag IN (${tagList})
+    GROUP BY p.id
+    HAVING count(*) >= 1
+    ORDER BY overlap DESC, p."createdAt" DESC
+    LIMIT ${limit}
+  `);
+
+  const ids = (ranked.rows as { id: string }[]).map((r) => r.id);
+  if (!ids.length) return [];
+
+  const rows = (await db
+    .select(postColumns)
+    .from(posts)
+    .where(inArray(posts.id, ids))) as PostRow[];
+
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is PostRow => !!r)
+    .map(rowToPost);
+}
+
 // ---- 신뢰등급 계산 헬퍼 (유저 id 목록 → tier 맵) ----
 /** 주어진 유저들의 ActivityStats 를 SQL 집계해 tier 만 뽑아낸다. */
 async function tierMapFor(userIds: string[]): Promise<Map<string, Tier>> {
