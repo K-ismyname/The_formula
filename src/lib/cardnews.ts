@@ -1,20 +1,20 @@
 // =============================================================================
-// 카드뉴스 생성 — AI SDK v6 generateObject + Google Gemini (gemini-3.5-flash)
+// 카드뉴스 생성 — AI SDK v6 generateObject + OpenAI (gpt-4o-mini)
 // =============================================================================
 // - 텍스트(summary/keywords/body/category)만 AI 생성. 커버 이미지는 생성하지 않음
 //   (coverImageUrl = "" → UI 가 결정론적 브랜드 그라데이션으로 렌더).
-// - @ai-sdk/google 가 GOOGLE_GENERATIVE_AI_API_KEY 로 직접 인증(게이트웨이 불필요).
+// - @ai-sdk/openai 가 OPENAI_API_KEY 로 직접 인증(게이트웨이 불필요).
 // - 호출 실패 시 결정론적 폴백으로 graceful degrade.
 // =============================================================================
 import { generateObject, generateText } from "ai";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import type { CardNews, Category } from "@/lib/contract";
 import { CATEGORIES, categories, AGENT_PERSONAS } from "@/lib/contract";
 import { getSourceKind } from "@/lib/sources";
 
-/** 기본 모델 — Gemini 3.5 Flash. 환경변수 CARDNEWS_MODEL 로 오버라이드 가능. */
-const CARDNEWS_MODEL = process.env.CARDNEWS_MODEL ?? "gemini-3.5-flash";
+/** 기본 모델 — GPT-4o mini. 환경변수 CARDNEWS_MODEL 로 오버라이드 가능. */
+const CARDNEWS_MODEL = process.env.CARDNEWS_MODEL ?? "gpt-4o-mini";
 
 // AI 가 채울 텍스트 + 분류 스키마 (coverImageUrl 제외)
 const cardNewsTextSchema = z.object({
@@ -58,7 +58,7 @@ export interface GenerateCardNewsInput {
   sourceName?: string;
   /** 폴백 카테고리(AI 분류 실패 시) */
   fallbackCategory?: Category;
-  /** 모델 오버라이드(Gemini 모델 ID). */
+  /** 모델 오버라이드(OpenAI 모델 ID). */
   model?: string;
 }
 
@@ -128,7 +128,7 @@ export async function enrichArticle(
 
   try {
     const { object } = await generateObject({
-      model: google(model),
+      model: openai(model),
       schema: cardNewsTextSchema,
       // 본문이 길어 출력이 잘리지 않도록 충분히 크게(표·차트 포함).
       maxOutputTokens: 16384,
@@ -148,7 +148,7 @@ export async function enrichArticle(
     };
   } catch (err) {
     console.warn(
-      "[cardnews] Gemini 생성 실패, 폴백 사용:",
+      "[cardnews] OpenAI 생성 실패, 폴백 사용:",
       err instanceof Error ? err.message : err,
     );
     const cardnews = fallbackCardNews(input);
@@ -207,7 +207,7 @@ export async function generatePersonaComments(input: {
   const { originalTitle, rawContent, model = CARDNEWS_MODEL } = input;
   try {
     const { object } = await generateObject({
-      model: google(model),
+      model: openai(model),
       schema: personaCommentsSchema,
       maxOutputTokens: 8192,
       system:
@@ -283,7 +283,7 @@ export async function generateCuratorReplies(input: {
       .map((c) => `- ${c.personaId}: "${c.body}"`)
       .join("\n");
     const { object } = await generateObject({
-      model: google(model),
+      model: openai(model),
       schema: curatorRepliesSchema,
       maxOutputTokens: 8192,
       system:
@@ -333,7 +333,7 @@ export async function generateArchiveDraft(input: {
     : "";
 
   const { text } = await generateText({
-    model: google(model),
+    model: openai(model),
     // 표·차트 포함 멀티섹션 한국어 글 — 잘리면 표/차트가 깨지므로 enrichArticle 과 동일하게 크게.
     maxOutputTokens: 16384,
     system:
