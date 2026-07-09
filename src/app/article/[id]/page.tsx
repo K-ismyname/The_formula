@@ -6,6 +6,7 @@ import { AuthorActions } from "./author-actions";
 import {
   getArticle,
   getAuthorOtherPosts,
+  getRelatedArticles,
   getProfile,
   currentUserId,
 } from "@/lib/queries";
@@ -83,6 +84,10 @@ export default async function ArticleDetailPage({ params }: PageProps) {
   const otherPosts = author
     ? await getAuthorOtherPosts(author.id, post.id, 4)
     : [];
+
+  // 본문: 해시태그 겹침 기반 관련 아티클 추천 (최대 2개)
+  const relatedArticles =
+    post.tags.length > 0 ? await getRelatedArticles(post.id, post.tags, 2) : [];
   let isFollowing = false;
   let isMe = false;
   if (author) {
@@ -221,6 +226,26 @@ export default async function ArticleDetailPage({ params }: PageProps) {
                 </span>
               ))}
             </div>
+          )}
+
+          {/* 관련 글 추천 — 해시태그 겹침 랭킹, 겹치는 글 없으면 섹션 자체 숨김 */}
+          {relatedArticles.length > 0 && (
+            <section className="linked-formulas" style={{ marginTop: 28 }}>
+              <div className="lf-head">
+                <span aria-hidden>🔗</span>이런 글은 어떠세요?
+              </div>
+              <ul className="lf-list">
+                {relatedArticles.map((a) => (
+                  <li key={a.id}>
+                    <Link href={`/article/${a.id}`} className="lf-item">
+                      <div className="lf-main">
+                        <span className="lf-name">{a.title}</span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {/* =====================================================================
